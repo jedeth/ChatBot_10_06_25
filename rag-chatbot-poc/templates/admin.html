@@ -97,12 +97,26 @@
                 try {
                     const res = await fetch('/api/models/status');
                     const data = await res.json();
-                    document.getElementById('currentModelDisplay').textContent = data.current_model;
                     const statusEl = document.getElementById('ollamaStatusDisplay');
-                    statusEl.textContent = data.ollama_available ? 'En ligne' : 'Hors ligne';
-                    statusEl.className = `card-title ${data.ollama_available ? 'text-success' : 'text-danger'}`;
+                    const modelManagerButton = document.querySelector('button[data-bs-target="#modelManagerModal"]');
+
+                    document.getElementById('currentModelDisplay').textContent = data.current_model;
+
+                    if (data.provider === 'gemini') {
+                        statusEl.textContent = 'API Externe';
+                        statusEl.className = 'card-title text-success';
+                        if (modelManagerButton) {
+                            modelManagerButton.style.display = 'none'; // Cache le bouton de gestion
+                        }
+                    } else { // Cas pour 'ollama' ou 'simple'
+                        statusEl.textContent = data.ollama_available ? 'En ligne' : 'Hors ligne';
+                        statusEl.className = `card-title ${data.ollama_available ? 'text-success' : 'text-danger'}`;
+                        if (modelManagerButton) {
+                            modelManagerButton.style.display = 'block'; // Affiche le bouton de gestion
+                        }
+                    }
                 } catch (e) { console.error("Status update failed", e); }
-            }
+}
             
             async function loadInstalledModels() {
                 const container = document.getElementById('installedModelsList');

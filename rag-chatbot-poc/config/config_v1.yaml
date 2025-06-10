@@ -1,0 +1,55 @@
+app:
+  name: "RAG Document Chatbot POC"
+  version: "1.0.1"
+  debug: true
+  host: "0.0.0.0"
+  port: 8000
+
+database:
+  type: "sqlite"
+  path: "data/database/chatbot.db"
+  vector_db:
+    type: "chromadb"
+    path: "data/database/chroma_db"
+    collection_name: "documents"
+
+embedding:
+  model_name: "all-MiniLM-L6-v2"
+  chunk_size: 1000
+  chunk_overlap: 200
+
+llm:
+  # C'EST LE SEUL INTERRUPTEUR À CHANGER pour basculer entre les services.
+  # Mettez "gemini" pour utiliser l'API Google, ou "ollama" pour utiliser le service local.
+  provider: "gemini"
+
+  # --- Paramètres pour Gemini ---
+  gemini:
+    model: "gemini-1.5-flash-latest"
+    temperature: 0.7
+
+  # --- Paramètres pour Ollama ---
+  ollama:
+    url: "http://localhost:11434"
+    model: "mistral"
+    max_tokens: 512
+    temperature: 0.7
+  
+  # --- Modèles disponibles (UNIQUEMENT pour le panel d'admin Ollama) ---
+  available_models:
+    - name: "mistral"
+      display_name: "Mistral 7B"
+      description: "Modèle polyvalent et rapide, excellent pour le français."
+      size: "4.1GB"
+      recommended: true
+    - name: "llama3"
+      display_name: "Llama 3 8B"
+      description: "Dernier modèle de Meta, très performant."
+      size: "4.7GB"
+      recommended: false
+
+# SECTION MANQUANTE À RESTAURER
+storage:
+  documents_path: "data/documents"
+  processed_path: "data/processed"
+  max_file_size: 50

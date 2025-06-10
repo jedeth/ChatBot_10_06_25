@@ -1,11 +1,16 @@
-# Configuration POC RAG Chatbot
+# ===================================================================
+# CONFIGURATION PROPRE ET FINALE
+# ===================================================================
+
+# --- Configuration de l'application web ---
 app:
   name: "RAG Document Chatbot POC"
   version: "1.0.1"
   debug: true
-  host: "0.0.0.0" # Écoute sur toutes les interfaces
+  host: "0.0.0.0"
   port: 8000
 
+# --- Configuration de la base de données ---
 database:
   type: "sqlite"
   path: "data/database/chatbot.db"
@@ -14,22 +19,34 @@ database:
     path: "data/database/chroma_db"
     collection_name: "documents"
 
-storage:
-  documents_path: "data/documents"
-  processed_path: "data/processed"
-  max_file_size: 50 # en MB
-
+# --- Configuration de la création des embeddings ---
 embedding:
   model_name: "all-MiniLM-L6-v2"
   chunk_size: 1000
   chunk_overlap: 200
 
+# --- Configuration du LLM ---
 llm:
-  provider: "ollama" # 'ollama' ou 'simple'
-  default_model: "mistral"
-  ollama_url: "http://localhost:11434"
-  max_tokens: 512
-  temperature: 0.7
+  # C'EST LE SEUL INTERRUPTEUR À CHANGER pour basculer entre les services.
+  # Options valides: "gemini" ou "ollama". Autre chose basculera en mode "simple".
+  provider: "gemini"
+
+  # --- Paramètres spécifiques à Gemini ---
+  gemini:
+    # Le modèle à utiliser via l'API. "gemini-1.5-flash-latest" est rapide et performant.
+    model: "gemini-1.5-flash-latest"
+    # La "créativité" du modèle. 0.7 est une bonne valeur pour commencer.
+    temperature: 0.7
+    # Note : La clé d'API doit être dans votre variable d'environnement GEMINI_API_KEY.
+
+  # --- Paramètres spécifiques à Ollama ---
+  ollama:
+    url: "http://localhost:11434"
+    model: "mistral"
+    max_tokens: 512
+    temperature: 0.7
+  
+  # --- Modèles disponibles (UNIQUEMENT pour le panel d'admin Ollama) ---
   available_models:
     - name: "mistral"
       display_name: "Mistral 7B"
@@ -41,13 +58,9 @@ llm:
       description: "Dernier modèle de Meta, très performant."
       size: "4.7GB"
       recommended: false
-    - name: "neural-chat"
-      display_name: "Neural Chat 7B"
-      description: "Optimisé pour la conversation."
-      size: "4.1GB"
-      recommended: false
-    - name: "codellama"
-      display_name: "Code Llama 7B"
-      description: "Spécialisé pour les questions liées au code."
-      size: "3.8GB"
-      recommended: false
+
+# --- Configuration du stockage des fichiers ---
+storage:
+  documents_path: "data/documents"
+  processed_path: "data/processed"
+  max_file_size: 50
