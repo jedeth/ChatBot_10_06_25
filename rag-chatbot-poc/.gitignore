@@ -1,7 +1,8 @@
 # Environnement Virtuel
-env_app_pseudo/
+
 *.venv/
 .env/
+env/
 
 # Fichiers Python compilés et caches
 __pycache__/
