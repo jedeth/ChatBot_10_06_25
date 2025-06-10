@@ -1,0 +1,53 @@
+# Configuration POC RAG Chatbot
+app:
+  name: "RAG Document Chatbot POC"
+  version: "1.0.1"
+  debug: true
+  host: "0.0.0.0" # Écoute sur toutes les interfaces
+  port: 8000
+
+database:
+  type: "sqlite"
+  path: "data/database/chatbot.db"
+  vector_db:
+    type: "chromadb"
+    path: "data/database/chroma_db"
+    collection_name: "documents"
+
+storage:
+  documents_path: "data/documents"
+  processed_path: "data/processed"
+  max_file_size: 50 # en MB
+
+embedding:
+  model_name: "all-MiniLM-L6-v2"
+  chunk_size: 1000
+  chunk_overlap: 200
+
+llm:
+  provider: "ollama" # 'ollama' ou 'simple'
+  default_model: "mistral"
+  ollama_url: "http://localhost:11434"
+  max_tokens: 512
+  temperature: 0.7
+  available_models:
+    - name: "mistral"
+      display_name: "Mistral 7B"
+      description: "Modèle polyvalent et rapide, excellent pour le français."
+      size: "4.1GB"
+      recommended: true
+    - name: "llama3"
+      display_name: "Llama 3 8B"
+      description: "Dernier modèle de Meta, très performant."
+      size: "4.7GB"
+      recommended: false
+    - name: "neural-chat"
+      display_name: "Neural Chat 7B"
+      description: "Optimisé pour la conversation."
+      size: "4.1GB"
+      recommended: false
+    - name: "codellama"
+      display_name: "Code Llama 7B"
+      description: "Spécialisé pour les questions liées au code."
+      size: "3.8GB"
+      recommended: false

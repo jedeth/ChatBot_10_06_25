@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration - RAG Chatbot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" rel="stylesheet">
+    <style>
+        .model-card.installed { border-left: 5px solid #198754; }
+        .model-card.active { border-left: 5px solid #0d6efd; background-color: rgba(13, 110, 253, 0.05); }
+        .progress-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 10; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary shadow-sm">
+        <div class="container-fluid">
+            <a href="/" class="navbar-brand"><i class="fas fa-robot"></i> RAG Document Chatbot</a>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light me-2"><i class="fas fa-comments"></i> Chat</a>
+                <a href="/upload" class="btn btn-outline-light"><i class="fas fa-upload"></i> Upload</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-cogs"></i> Panel d'Administration</h2>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modelManagerModal">
+                <i class="fas fa-brain"></i> Gestion des Modèles LLM
+            </button>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body"><h5 class="card-title text-primary">{{ stats.total_documents }}</h5><p class="card-text">Documents</p></div></div></div>
+            <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body"><h5 class="card-title text-info">{{ stats.total_chunks }}</h5><p class="card-text">Chunks Indexés</p></div></div></div>
+            <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body"><h5 class="card-title text-warning" id="currentModelDisplay">...</h5><p class="card-text">Modèle LLM Actif</p></div></div></div>
+            <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body"><h5 class="card-title" id="ollamaStatusDisplay">...</h5><p class="card-text">Statut Ollama</p></div></div></div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header"><h5><i class="fas fa-file-alt"></i> Documents Gérés</h5></div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead><tr><th>ID</th><th>Nom</th><th>Type</th><th>Taille</th><th>Date</th><th>Chunks</th><th>Actions</th></tr></thead>
+                        <tbody>
+                        {% for doc in documents %}
+                            <tr>
+                                <td>{{ doc.id }}</td>
+                                <td>{{ doc.filename }}</td>
+                                <td><span class="badge bg-secondary">{{ doc.file_type }}</span></td>
+                                <td>{{ "%.1f"|format(doc.file_size / 1024 / 1024) }} MB</td>
+                                <td>{{ doc.upload_date }}</td>
+                                <td><span class="badge bg-info">{{ doc.chunk_count }}</span></td>
+                                <td><button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button></td>
+                            </tr>
+                        {% endfor %}
+                        {% if not documents %}
+                            <tr><td colspan="7" class="text-center text-muted">Aucun document uploadé.</td></tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modelManagerModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-brain"></i> Gestion des Modèles LLM</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="modelTabs">
+                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#installed"><i class="fas fa-check-circle"></i> Installés</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#available"><i class="fas fa-download"></i> Disponibles</button></li>
+                    </ul>
+                    <div class="tab-content mt-3">
+                        <div class="tab-pane fade show active" id="installed"><div id="installedModelsList" class="row"></div></div>
+                        <div class="tab-pane fade" id="available"><div id="availableModelsList" class="row"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modelManagerModal = new bootstrap.Modal(document.getElementById('modelManagerModal'));
+
+            async function updateStatus() {
+                try {
+                    const res = await fetch('/api/models/status');
+                    const data = await res.json();
+                    document.getElementById('currentModelDisplay').textContent = data.current_model;
+                    const statusEl = document.getElementById('ollamaStatusDisplay');
+                    statusEl.textContent = data.ollama_available ? 'En ligne' : 'Hors ligne';
+                    statusEl.className = `card-title ${data.ollama_available ? 'text-success' : 'text-danger'}`;
+                } catch (e) { console.error("Status update failed", e); }
+            }
+            
+            async function loadInstalledModels() {
+                const container = document.getElementById('installedModelsList');
+                container.innerHTML = '<div class="text-center"><div class="spinner-border"></div></div>';
+                try {
+                    const res = await fetch('/api/models/installed');
+                    const data = await res.json();
+                    if (!data.models || data.models.length === 0) {
+                        container.innerHTML = '<p class="text-muted text-center">Aucun modèle installé.</p>'; return;
+                    }
+                    container.innerHTML = data.models.map(m => createModelCard(m, data.current_model, true)).join('');
+                } catch (e) { container.innerHTML = '<p class="text-danger text-center">Erreur de chargement.</p>'; }
+            }
+
+            async function loadAvailableModels() {
+                const container = document.getElementById('availableModelsList');
+                container.innerHTML = '<div class="text-center"><div class="spinner-border"></div></div>';
+                try {
+                    const res = await fetch('/api/models/available');
+                    const data = await res.json();
+                    if (!data.ollama_available) {
+                         container.innerHTML = '<p class="text-warning text-center">Ollama n\'est pas disponible. Impossible de télécharger des modèles.</p>'; return;
+                    }
+                    container.innerHTML = data.ollama_models.map(m => createModelCard(m, null, false)).join('');
+                } catch (e) { container.innerHTML = '<p class="text-danger text-center">Erreur de chargement.</p>'; }
+            }
+            
+            function createModelCard(model, currentModel, isInstalled) {
+                const isActive = model.name === currentModel;
+                return `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card model-card ${isActive ? 'active' : ''} ${isInstalled ? 'installed' : ''}">
+                            <div class="card-body">
+                                <h6 class="card-title">${model.display_name || model.name}</h6>
+                                <p class="card-text small text-muted">${model.description || `Taille: ${model.size}`}</p>
+                                <div class="btn-group w-100">
+                                    ${isInstalled ? `
+                                        <button class="btn btn-sm btn-primary ${isActive ? 'disabled' : ''}" onclick="setActive('${model.name}')">${isActive ? 'Actif' : 'Activer'}</button>
+                                        <button class="btn btn-sm btn-outline-danger" ${isActive ? 'disabled' : ''} onclick="removeModel('${model.name}')"><i class="fas fa-trash"></i></button>
+                                    ` : `
+                                        <button class="btn btn-sm btn-success" ${model.installed ? 'disabled' : ''} onclick="installModel('${model.name}')"><i class="fas fa-download"></i> ${model.installed ? 'Installé' : 'Installer'}</button>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+            
+            window.setActive = async (name) => {
+                await fetch(`/api/models/set-active/${name}`, { method: 'POST' });
+                await updateStatus();
+                await loadInstalledModels();
+            };
+            window.removeModel = async (name) => {
+                if (!confirm(`Supprimer le modèle ${name} ?`)) return;
+                await fetch(`/api/models/${name}`, { method: 'DELETE' });
+                await updateStatus();
+                await loadInstalledModels();
+                await loadAvailableModels();
+            };
+            window.installModel = async (name) => {
+                alert(`L'installation de ${name} a été demandée. Le processus se déroule en arrière-plan et peut prendre plusieurs minutes.`);
+                fetch(`/api/models/install/${name}`, { method: 'POST' });
+            };
+
+            document.getElementById('modelManagerModal').addEventListener('shown.bs.modal', () => {
+                loadInstalledModels();
+                loadAvailableModels();
+            });
+
+            updateStatus();
+            setInterval(updateStatus, 30000);
+        });
+    </script>
+</body>
+</html>

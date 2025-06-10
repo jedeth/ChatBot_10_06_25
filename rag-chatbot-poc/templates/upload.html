@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload de Documents - RAG Chatbot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary shadow-sm">
+        <div class="container-fluid">
+            <a href="/" class="navbar-brand">
+                <i class="fas fa-robot"></i> RAG Document Chatbot
+            </a>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light me-2">
+                    <i class="fas fa-comments"></i> Chat
+                </a>
+                <a href="/admin" class="btn btn-outline-light">
+                    <i class="fas fa-cog"></i> Admin
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h4><i class="fas fa-upload"></i> Uploader un Document</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="uploadForm" enctype="multipart/form-data">
+                            <div id="dropZone" class="drop-zone mb-3">
+                                <div class="text-center">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <p>Glissez et déposez votre fichier ici</p>
+                                    <p class="text-muted">ou</p>
+                                     <label for="fileInput" class="btn btn-secondary btn-sm">Parcourir les fichiers</label>
+                                     <input type="file" id="fileInput" name="file" class="d-none" accept=".pdf,.docx,.xlsx,.pptx,.txt">
+                                </div>
+                            </div>
+                            <div id="fileNameDisplay" class="text-center text-muted mb-3"></div>
+                            
+                            <div class="mb-3">
+                                <label for="tagsInput" class="form-label">Tags (optionnel)</label>
+                                <input type="text" class="form-control" id="tagsInput" name="tags" placeholder="Ex: rapport, 2024, finance">
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary" id="uploadButton">
+                                    <i class="fas fa-cogs"></i> Uploader et Traiter
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="progressContainer" class="mt-3" style="display: none;">
+                            <div class="progress">
+                                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small id="progressText" class="text-muted">Préparation...</small>
+                        </div>
+
+                        <div id="messages" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+            const uploadForm = document.getElementById('uploadForm');
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            const uploadButton = document.getElementById('uploadButton');
+            
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const messages = document.getElementById('messages');
+
+            function handleFileSelect(files) {
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    fileNameDisplay.textContent = 'Fichier sélectionné : ' + files[0].name;
+                }
+            }
+            
+            dropZone.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', () => handleFileSelect(fileInput.files));
+            
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                handleFileSelect(e.dataTransfer.files);
+            });
+
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(uploadForm);
+                if (!fileInput.files[0]) {
+                    showMessage('Veuillez sélectionner un fichier.', 'danger');
+                    return;
+                }
+
+                uploadButton.disabled = true;
+                uploadButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                progressText.textContent = 'Upload en cours...';
+
+                try {
+                    const response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    progressBar.style.width = '50%';
+                    progressText.textContent = 'Fichier uploadé, traitement en cours...';
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        progressBar.style.width = '100%';
+                        progressText.textContent = 'Traitement terminé !';
+                        showMessage(`✅ ${result.message} (${result.chunks} chunks créés)`, 'success');
+                        uploadForm.reset();
+                        fileNameDisplay.textContent = '';
+                    } else {
+                        throw new Error(result.detail || 'Erreur inconnue lors du traitement.');
+                    }
+                } catch (error) {
+                    showMessage(`❌ Erreur : ${error.message}`, 'danger');
+                    progressContainer.style.display = 'none';
+                } finally {
+                    uploadButton.disabled = false;
+                    uploadButton.innerHTML = '<i class="fas fa-cogs"></i> Uploader et Traiter';
+                }
+            });
+
+            function showMessage(message, type) {
+                messages.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>`;
+            }
+        });
+    </script>
+</body>
+</html>
